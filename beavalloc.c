@@ -54,24 +54,39 @@ beavalloc_set_log(FILE *stream)
 void *
 beavalloc(size_t size)
 {
+    struct mem_block_s *newMem = NULL;
     void *ptr = NULL;
 
+    if(size == 0){
+        return NULL;
+    }
+        
+    
     // calculate number of bytes to allocate
     // required: num bytes plus space for data structure (40B)
     // must be a multiple of 1024
-    size_t numBytes = (size + 40) / 1024;
+    size_t numBytes = ((size + BLOCK_SIZE + 1024 - 1) / 1024) * 1024;
     ptr = sbrk(numBytes);
 
-    // save struct values
-    struct mem_block_s *newMem = ptr;
-    newMem->capacity = numBytes - 40;
+    // init lower_mem_bound
+    if(lower_mem_bound == NULL)
+        lower_mem_bound = ptr;
+
+    if(upper_mem_bound == NULL)
+        upper_mem_bound = ptr + numBytes;
+    else
+        upper_mem_bound = upper_mem_bound + numBytes;
+
+    // save struct values    
+    newMem = ptr;
+    newMem->capacity = numBytes - BLOCK_SIZE;
     newMem->size = size;
     
     // update double linked list structure
     newMem->prev = block_list_head;
-    newMem->prev->next = newMem;
+    if(block_list_head)
+        newMem->prev->next = newMem;
     block_list_head = newMem;
-
 
     return ptr;
 }
@@ -86,6 +101,7 @@ beavfree(void *ptr)
 void 
 beavalloc_reset(void)
 {
+    brk(lower_mem_bound);
 }
 
 void *
