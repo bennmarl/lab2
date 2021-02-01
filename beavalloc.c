@@ -57,7 +57,7 @@ beavalloc(size_t size)
     struct mem_block_s *newMem = NULL;
     void *ptr = NULL;
 
-    if(size == 0){
+    if(!size){
         return NULL;
     }
         
@@ -67,7 +67,7 @@ beavalloc(size_t size)
     // must be a multiple of 1024
     size_t numBytes = ((size + BLOCK_SIZE + 1024 - 1) / 1024) * 1024;
     ptr = sbrk(numBytes);
-
+    
     // init lower_mem_bound
     if(lower_mem_bound == NULL)
         lower_mem_bound = ptr;
@@ -88,12 +88,24 @@ beavalloc(size_t size)
         newMem->prev->next = newMem;
     block_list_head = newMem;
 
+    ptr+= numBytes;
+    
     return ptr;
 }
 
 void 
 beavfree(void *ptr)
 {
+    struct mem_block_s *s = block_list_head;
+    while(s->prev){
+        if(s == ptr){
+            s->free = TRUE;
+        }
+        else
+        {
+            s = s->prev;
+        }
+    }
     return;
 }
 
