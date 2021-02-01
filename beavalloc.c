@@ -56,6 +56,23 @@ beavalloc(size_t size)
 {
     void *ptr = NULL;
 
+    // calculate number of bytes to allocate
+    // required: num bytes plus space for data structure (40B)
+    // must be a multiple of 1024
+    size_t numBytes = (size + 40) / 1024;
+    ptr = sbrk(numBytes);
+
+    // save struct values
+    struct mem_block_s *newMem = ptr;
+    newMem->capacity = numBytes - 40;
+    newMem->size = size;
+    
+    // update double linked list structure
+    newMem->prev = block_list_head;
+    newMem->prev->next = newMem;
+    block_list_head = newMem;
+
+
     return ptr;
 }
 
