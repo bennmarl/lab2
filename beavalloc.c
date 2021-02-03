@@ -54,43 +54,64 @@ beavalloc_set_log(FILE *stream)
 void *
 beavalloc(size_t size)
 {
-    struct mem_block_s *newMem = NULL;
+    struct mem_block_s *newMem, *s = NULL;
     void *ptr = NULL;
+    size_t reqBytes = size + BLOCK_SIZE;
 
     if(!size){
         return NULL;
     }
+
+    /* check if split memory */
+    s = block_list_head;
+    if(s){
+        while(s->prev){
+            if(s->capacity >= reqBytes){
+                newMem = s + BLOCK_SIZE + s->size;
+                s->capacity = s->capacity - reqBytes;
+                newMem->next = s->next;
+                newMem->prev = s;
+                s->next = newMem;
+                ptr = newMem;
+            }
+            else
+            {
+                s = s->prev;
+            }
+        }
+    }
+
+    /*  allocate new memory */
+    if(!newMem){
+                // calculate number of bytes to allocate
+        // required: num bytes plus space for data structure (40B)
+        // must be a multiple of 1024
+        size_t numBytes_1024 = ((size + BLOCK_SIZE + 1024 - 1) / 1024) * 1024;
+        ptr = sbrk(numBytes_1024);
         
-    
-    // calculate number of bytes to allocate
-    // required: num bytes plus space for data structure (40B)
-    // must be a multiple of 1024
-    size_t numBytes = ((size + BLOCK_SIZE + 1024 - 1) / 1024) * 1024;
-    ptr = sbrk(numBytes);
-    
-    // init lower_mem_bound
-    if(lower_mem_bound == NULL)
-        lower_mem_bound = ptr;
+        // init lower_mem_bound
+        if(lower_mem_bound == NULL)
+            lower_mem_bound = ptr;
 
-    if(upper_mem_bound == NULL)
-        upper_mem_bound = ptr + numBytes;
-    else
-        upper_mem_bound = upper_mem_bound + numBytes;
+        if(upper_mem_bound == NULL)
+            upper_mem_bound = ptr + numBytes_1024;
+        else
+            upper_mem_bound = upper_mem_bound + numBytes_1024;
 
-    // save struct values    
-    newMem = ptr;
-    newMem->capacity = numBytes - BLOCK_SIZE;
-    newMem->size = size;
-    
-    // update double linked list structure
-    newMem->prev = block_list_head;
-    if(block_list_head)
-        newMem->prev->next = newMem;
-    block_list_head = newMem;
-
-    ptr+= numBytes;
-    
-    return ptr;
+        // save struct values    
+        newMem = ptr;
+        newMem->capacity = numBytes_1024 - BLOCK_SIZE;
+        newMem->size = size;
+        
+        // update double linked list structure
+        newMem->prev = block_list_head;
+        if(block_list_head)
+            newMem->prev->next = newMem;
+        block_list_head = newMem;
+    }
+        
+    // return pointer to available address for data
+    return BLOCK_DATA(ptr);
 }
 
 void 
