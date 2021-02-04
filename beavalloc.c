@@ -151,6 +151,11 @@ void *
 beavcalloc(size_t nmemb, size_t size)
 {
     void *ptr = NULL;
+    if(nmemb > 0 && size > 0)
+        ptr = malloc(nmemb * size);
+
+    if(ptr)
+        memset(ptr, 0, nmemb);
 
     return ptr;
 }
