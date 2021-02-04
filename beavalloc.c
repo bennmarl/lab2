@@ -64,20 +64,20 @@ beavalloc(size_t size)
 
     /* check if split memory */
     s = block_list_head;
-    if(s){
-        while(s->prev){
-            if(s->capacity >= reqBytes){
-                newMem = s + BLOCK_SIZE + s->size;
-                s->capacity = s->capacity - reqBytes;
-                newMem->next = s->next;
-                newMem->prev = s;
-                s->next = newMem;
-                ptr = newMem;
-            }
-            else
-            {
-                s = s->prev;
-            }
+    while(s){
+        if(s->capacity >= reqBytes){
+            newMem = s + BLOCK_SIZE + s->size;
+            s->capacity = s->capacity - reqBytes;
+            newMem->next = s->next;
+            s->next = newMem;
+            newMem->prev = s;
+            newMem->capacity = s->capacity - reqBytes;
+            newMem->size = size;
+            ptr = newMem;
+        }
+        else
+        {
+            s = s->next;
         }
     }
 
@@ -118,9 +118,19 @@ void
 beavfree(void *ptr)
 {
     struct mem_block_s *s = block_list_head;
-    while(s->prev){
+    while(s){
         if(s == ptr){
             s->free = TRUE;
+            s->capacity -= s->size;
+            s->size = 0;
+            if(s->next->free == TRUE){ //coalesce
+                s->capacity += s->next->capacity + BLOCK_SIZE;
+                s->next = s->next->next;
+                s->next->prev = s;
+
+                // check if previous block was free
+                beavfree(s->prev);
+            }
         }
         else
         {
