@@ -134,7 +134,7 @@ beavfree(void *ptr)
         }
         else
         {
-            s = s->prev;
+            s = s->next;
         }
     }
     return;
@@ -164,6 +164,35 @@ void *
 beavrealloc(void *ptr, size_t size)
 {
     void *nptr = NULL;
+    struct mem_block_s *s = block_list_head;
+
+    // malloc if null pointer
+    if(!ptr)
+        nptr = beavalloc(size);
+
+    // free mem if valid pointer and size = 0
+    else if (size == 0)
+        beavfree(ptr);
+
+    // otherwise
+    else{
+        while(s){
+            if(s == ptr){
+                if(s->capacity + s->size - size >= 0){ // enough space to relloc in same spot
+                    s->capacity = s->capacity + s->size - size;
+                    s->size = size;
+                }
+                else{ //new mem block
+                    nptr = beavalloc(size);
+                    memcpy(nptr + BLOCK_SIZE, ptr + BLOCK_SIZE, s->size);
+                    beavfree(ptr);
+                }
+            }
+            else
+            {
+                s = s->next;
+            }
+    }
 
     return nptr;
 }
