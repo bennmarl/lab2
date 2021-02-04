@@ -192,8 +192,8 @@ beavrealloc(void *ptr, size_t size)
             {
                 s = s->next;
             }
+        }
     }
-
     return nptr;
 }
 
