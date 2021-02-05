@@ -54,7 +54,8 @@ beavalloc_set_log(FILE *stream)
 void *
 beavalloc(size_t size)
 {
-    struct mem_block_s *newMem, *s = NULL;
+    struct mem_block_s *newMem = NULL;
+    struct mem_block_s *s = NULL;
     void *ptr = NULL;
     size_t reqBytes = size + BLOCK_SIZE;
 
@@ -64,16 +65,26 @@ beavalloc(size_t size)
 
     /* check if split memory */
     s = block_list_head;
+
     while(s){
-        if(s->capacity >= reqBytes){
-            newMem = s + BLOCK_SIZE + s->size;
-            s->capacity = s->capacity - reqBytes;
+        if((s->capacity > reqBytes) && !s->free){
+            printf("splitting: reqBytes = %zu, s->cap: %zu\n", reqBytes, s->capacity);
+          
+            newMem = ((void*)s + BLOCK_SIZE + s->size);
+
+            newMem->capacity = s->capacity - reqBytes;
+            s->capacity = 0;
+
             newMem->next = s->next;
+
             s->next = newMem;
             newMem->prev = s;
-            newMem->capacity = s->capacity - reqBytes;
+
             newMem->size = size;
             ptr = newMem;
+            printf("ptr: %p, s: %p\n", ptr, s);
+            break;
+
         }
         else
         {
@@ -81,20 +92,22 @@ beavalloc(size_t size)
         }
     }
 
+
     /*  allocate new memory */
     if(!newMem){
+
                 // calculate number of bytes to allocate
         // required: num bytes plus space for data structure (40B)
         // must be a multiple of 1024
-        size_t numBytes_1024 = ((size + BLOCK_SIZE + 1024 - 1) / 1024) * 1024;
+        size_t numBytes_1024 = ((int)(size + BLOCK_SIZE+1023) / 1024) * 1024;
         ptr = sbrk(numBytes_1024);
         
         // init lower_mem_bound
         if(lower_mem_bound == NULL)
-            lower_mem_bound = ptr;
+            lower_mem_bound = (void*)ptr;
 
         if(upper_mem_bound == NULL)
-            upper_mem_bound = ptr + numBytes_1024;
+            upper_mem_bound = (void*)ptr + numBytes_1024;
         else
             upper_mem_bound = upper_mem_bound + numBytes_1024;
 
@@ -104,12 +117,26 @@ beavalloc(size_t size)
         newMem->size = size;
         
         // update double linked list structure
-        newMem->prev = block_list_head;
-        if(block_list_head)
-            newMem->prev->next = newMem;
-        block_list_head = newMem;
+        if(block_list_head){
+            s = block_list_head;
+            while(s->next){
+                s = s->next;
+            }
+            newMem->prev = s;
+            newMem->next = NULL;
+        }
+        else{
+            newMem->prev = NULL;
+            newMem->next = NULL;
+            block_list_head = newMem;
+        }
+
+
+        
     }
         
+        if(s)
+        printf("s->cap: %zu\n", s->capacity);
     // return pointer to available address for data
     return BLOCK_DATA(ptr);
 }
@@ -118,25 +145,40 @@ void
 beavfree(void *ptr)
 {
     struct mem_block_s *s = block_list_head;
+    ptr = ptr - BLOCK_SIZE;
+
     while(s){
+        
         if(s == ptr){
+
             s->free = TRUE;
             s->capacity -= s->size;
             s->size = 0;
-            if(s->next->free == TRUE){ //coalesce
+
+            printf("s: cap %zu, size: %zu\n", s->capacity, s->size);
+
+
+            if(s->next && s->next->free == TRUE){ //coalesce
                 s->capacity += s->next->capacity + BLOCK_SIZE;
                 s->next = s->next->next;
                 s->next->prev = s;
 
                 // check if previous block was free
-                beavfree(s->prev);
+                if(s->prev && s->prev->free == TRUE)
+                    beavfree(s->prev);
             }
+
+            break;
+
         }
         else
         {
             s = s->next;
         }
     }
+
+    
+
     return;
 }
 
@@ -201,6 +243,11 @@ void *
 beavstrdup(const char *s)
 {
     void *nptr = NULL;
+
+    if(s){
+        nptr = malloc(strlen(s));
+        memcpy(nptr+BLOCK_SIZE, s, strlen(s));
+    }
 
     return nptr;
 }

@@ -361,10 +361,15 @@ allocs5(int testno)
     fprintf(log_stream, "      5 allocs\n");
 
     ptr1 = beavalloc(500);
+    printf("ptr1: %p\n", ptr1);
     ptr2 = beavalloc(530);
+    printf("ptr2: %p\n", ptr2);
     ptr3 = beavalloc(550);
+    printf("ptr3: %p\n", ptr3);
     ptr4 = beavalloc(1024);
+    printf("ptr4: %p\n", ptr4);
     ptr5 = beavalloc(2048);
+    printf("ptr5: %p\n", ptr5);
 
     assert(base < ptr1);
     assert(ptr1 < ptr2);
@@ -779,9 +784,13 @@ splitcoalesce1(int testno)
     ptr1 = beavalloc(100);
     beavalloc_dump();
 
+    printf("check 2\n");
+
     // should force a split
     ptr2 = beavalloc(200);
     beavalloc_dump();
+
+    printf("check3 (split)\n");
 
     fprintf(log_stream, "  ptr1 : %p\n  ptr2 : %p\n"
             , ptr1, ptr2);
