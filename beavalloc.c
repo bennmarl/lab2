@@ -57,6 +57,7 @@ beavalloc(size_t size)
     struct mem_block_s *newMem = NULL;
     struct mem_block_s *s = NULL;
     void *ptr = NULL;
+    size_t numBytes_1024;
     size_t reqBytes = size + BLOCK_SIZE;
 
     if(!size){
@@ -65,15 +66,19 @@ beavalloc(size_t size)
 
     /* check if split memory */
     s = block_list_head;
+    
+    if(s== NULL)
+        printf("null pointer\n");
 
-    while(s){
-        if((s->capacity > reqBytes) && !s->free){
+    while(s != NULL){
+        // printf("s: %p, s->size: %zu\n", s, s->size);
+        if(((s->capacity - s->size) > reqBytes) && !s->free){
             printf("splitting: reqBytes = %zu, s->cap: %zu\n", reqBytes, s->capacity);
           
             newMem = ((void*)s + BLOCK_SIZE + s->size);
 
-            newMem->capacity = s->capacity - reqBytes;
-            s->capacity = 0;
+            newMem->capacity = s->capacity - s->size - reqBytes;
+            s->capacity = s->size;
 
             newMem->next = s->next;
 
@@ -99,8 +104,9 @@ beavalloc(size_t size)
                 // calculate number of bytes to allocate
         // required: num bytes plus space for data structure (40B)
         // must be a multiple of 1024
-        size_t numBytes_1024 = ((int)(size + BLOCK_SIZE+1023) / 1024) * 1024;
+        numBytes_1024 = ((size + BLOCK_SIZE+1023) / 1024) * 1024;
         ptr = sbrk(numBytes_1024);
+        printf("allocating new mem: %zu\n", numBytes_1024);
         
         // init lower_mem_bound
         if(lower_mem_bound == NULL)
@@ -124,6 +130,7 @@ beavalloc(size_t size)
             }
             newMem->prev = s;
             newMem->next = NULL;
+            s->next = newMem;
         }
         else{
             newMem->prev = NULL;
@@ -148,24 +155,27 @@ beavfree(void *ptr)
     ptr = ptr - BLOCK_SIZE;
 
     while(s){
-        
+        printf("searching...for ptr: %p, ptr-block: %p\n", ptr, ptr+BLOCK_SIZE);
         if(s == ptr){
-
+            printf("freeing...\n");
             s->free = TRUE;
-            s->capacity -= s->size;
             s->size = 0;
 
-            printf("s: cap %zu, size: %zu\n", s->capacity, s->size);
-
-
-            if(s->next && s->next->free == TRUE){ //coalesce
-                s->capacity += s->next->capacity + BLOCK_SIZE;
-                s->next = s->next->next;
-                s->next->prev = s;
-
-                // check if previous block was free
-                if(s->prev && s->prev->free == TRUE)
+            if(s->next){
+                if(s->next->free == TRUE){ //coalesce
+                    s->capacity += (s->next->capacity + BLOCK_SIZE);
+                    s->next = s->next->next;
+                    if(s->next)
+                        s->next->prev = s;
+                }
+            }
+            // check if previous block was free
+            if(s->prev){
+                if(s->prev->free == TRUE){
+                    printf("freeing prev block\n");
                     beavfree(s->prev);
+
+                }
             }
 
             break;
@@ -187,6 +197,7 @@ void
 beavalloc_reset(void)
 {
     brk(lower_mem_bound);
+    block_list_head = NULL;
 }
 
 void *
