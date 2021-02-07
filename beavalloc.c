@@ -72,20 +72,30 @@ beavalloc(size_t size)
 
     while(s != NULL){
         // printf("s: %p, s->size: %zu\n", s, s->size);
-        if(((s->capacity - s->size) > reqBytes) && !s->free){
-            printf("splitting: reqBytes = %zu, s->cap: %zu\n", reqBytes, s->capacity);
-          
-            newMem = ((void*)s + BLOCK_SIZE + s->size);
+        if(((s->capacity - s->size) > reqBytes)){
+            printf("splitting: reqBytes = %zu, s->cap: %zu\n", reqBytes, s->capacity - s->size);
 
-            newMem->capacity = s->capacity - s->size - reqBytes;
-            s->capacity = s->size;
+            // overwrite free memory
+            if(s->free){
+                printf("use free mem\n");
+                s->free = FALSE;
+                s->size = size;
+                newMem = s;
+            }
 
-            newMem->next = s->next;
+            else{
+                newMem = ((void*)s + BLOCK_SIZE + s->size);
 
-            s->next = newMem;
-            newMem->prev = s;
+                newMem->capacity = s->capacity - s->size - BLOCK_SIZE;
+                s->capacity = s->size;
+                newMem->next = s->next;
 
-            newMem->size = size;
+                s->next = newMem;
+                newMem->prev = s;
+
+                newMem->size = size;
+            }
+            
             ptr = newMem;
             printf("ptr: %p, s: %p\n", ptr, s);
             break;
@@ -155,11 +165,10 @@ beavfree(void *ptr)
     ptr = ptr - BLOCK_SIZE;
 
     while(s){
-        printf("searching...for ptr: %p, ptr-block: %p\n", ptr, ptr+BLOCK_SIZE);
         if(s == ptr){
-            printf("freeing...\n");
             s->free = TRUE;
             s->size = 0;
+            memset(BLOCK_DATA(s), 0, s->capacity);
 
             if(s->next){
                 if(s->next->free == TRUE){ //coalesce
@@ -169,15 +178,14 @@ beavfree(void *ptr)
                         s->next->prev = s;
                 }
             }
-            // check if previous block was free
+                            // check if previous block was free
             if(s->prev){
                 if(s->prev->free == TRUE){
-                    printf("freeing prev block\n");
-                    beavfree(s->prev);
-
+                    beavfree(BLOCK_DATA((void*)s->prev));
+                    break;
                 }
             }
-
+            
             break;
 
         }
