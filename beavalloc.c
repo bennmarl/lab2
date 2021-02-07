@@ -66,38 +66,34 @@ beavalloc(size_t size)
 
     /* check if split memory */
     s = block_list_head;
-    
-    if(s== NULL)
-        printf("null pointer\n");
 
-    while(s != NULL){
-        // printf("s: %p, s->size: %zu\n", s, s->size);
-        if(((s->capacity - s->size) > reqBytes)){
-            printf("splitting: reqBytes = %zu, s->cap: %zu\n", reqBytes, s->capacity - s->size);
+    // look for split
+    while(s){
+        if(!s->free && ((s->capacity - s->size) >= reqBytes)){
 
-            // overwrite free memory
-            if(s->free){
-                printf("use free mem\n");
-                s->free = FALSE;
-                s->size = size;
-                newMem = s;
-            }
+            newMem = ((void*)s + BLOCK_SIZE + s->size);
 
-            else{
-                newMem = ((void*)s + BLOCK_SIZE + s->size);
+            newMem->capacity = s->capacity - s->size - BLOCK_SIZE;
+            s->capacity = s->size;
+            newMem->next = s->next;
 
-                newMem->capacity = s->capacity - s->size - BLOCK_SIZE;
-                s->capacity = s->size;
-                newMem->next = s->next;
+            s->next = newMem;
+            newMem->prev = s;
 
-                s->next = newMem;
-                newMem->prev = s;
-
-                newMem->size = size;
-            }
+            newMem->size = size;
+            
             
             ptr = newMem;
-            printf("ptr: %p, s: %p\n", ptr, s);
+            break;
+
+        }
+        else if(s->free && (s->capacity >= size)){
+                        // overwrite free memory
+            s->free = FALSE;
+            s->size = size;
+            newMem = s;
+            ptr = s;
+
             break;
 
         }
@@ -151,9 +147,7 @@ beavalloc(size_t size)
 
         
     }
-        
-        if(s)
-        printf("s->cap: %zu\n", s->capacity);
+
     // return pointer to available address for data
     return BLOCK_DATA(ptr);
 }
@@ -168,7 +162,6 @@ beavfree(void *ptr)
         if(s == ptr){
             s->free = TRUE;
             s->size = 0;
-            memset(BLOCK_DATA(s), 0, s->capacity);
 
             if(s->next){
                 if(s->next->free == TRUE){ //coalesce
@@ -182,7 +175,6 @@ beavfree(void *ptr)
             if(s->prev){
                 if(s->prev->free == TRUE){
                     beavfree(BLOCK_DATA((void*)s->prev));
-                    break;
                 }
             }
             
@@ -213,7 +205,7 @@ beavcalloc(size_t nmemb, size_t size)
 {
     void *ptr = NULL;
     if(nmemb > 0 && size > 0)
-        ptr = malloc(nmemb * size);
+        ptr = beavalloc(nmemb * size);
 
     if(ptr)
         memset(ptr, 0, nmemb);
@@ -229,32 +221,34 @@ beavrealloc(void *ptr, size_t size)
 
     // malloc if null pointer
     if(!ptr)
-        nptr = beavalloc(size);
+        return(beavalloc(size));
+
+    ptr = ptr - BLOCK_SIZE;
 
     // free mem if valid pointer and size = 0
-    else if (size == 0)
+    if (size == 0)
         beavfree(ptr);
 
     // otherwise
     else{
         while(s){
             if(s == ptr){
-                if(s->capacity + s->size - size >= 0){ // enough space to relloc in same spot
-                    s->capacity = s->capacity + s->size - size;
+                if(s->capacity >= size ){ // enough space to relloc in same spot
                     s->size = size;
+                    nptr = BLOCK_DATA(ptr);
                 }
                 else{ //new mem block
                     nptr = beavalloc(size);
-                    memcpy(nptr + BLOCK_SIZE, ptr + BLOCK_SIZE, s->size);
-                    beavfree(ptr);
+                    memcpy(nptr, BLOCK_DATA(ptr), s->size);
+                    beavfree(BLOCK_DATA(ptr));
                 }
+                break;
             }
             else
-            {
                 s = s->next;
-            }
         }
     }
+
     return nptr;
 }
 

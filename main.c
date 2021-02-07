@@ -564,7 +564,7 @@ memset1(int testno)
         assert(memcmp(ptr3, ch, allocs[2]) == 0);
 
         memset(ch, 0x4, allocs[3]);
-        assert(memcmp(ptr4, ch, allocs[3]) == 0);
+        assert((ptr4, ch, allocs[3]) == 0);
 
         memset(ch, 0x5, allocs[4]);
         assert(memcmp(ptr5, ch, allocs[4]) == 0);
@@ -1251,6 +1251,7 @@ realloc2(int testno)
     ptr1 = beavrealloc(ptr1, 1000);
     assert(ptr1 != NULL);
     memset(ptr1, 0x1, 1000);
+    printf("chk\n");
 
     ptr1 = beavrealloc(ptr1, 5000);
     assert(ptr1 != NULL);
