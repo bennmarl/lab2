@@ -67,8 +67,11 @@ beavalloc(size_t size)
     /* check if split memory */
     s = block_list_head;
 
-    // look for split
+    printf("no seg fault yet\n");
+
+    // look for available space
     while(s){
+        // check split
         if(!s->free && ((s->capacity - s->size) >= reqBytes)){
 
             newMem = ((void*)s + BLOCK_SIZE + s->size);
@@ -88,14 +91,10 @@ beavalloc(size_t size)
 
         }
         else if(s->free && (s->capacity >= size)){
-                        // overwrite free memory
             s->free = FALSE;
             s->size = size;
-            newMem = s;
             ptr = s;
-
             break;
-
         }
         else
         {
@@ -105,14 +104,13 @@ beavalloc(size_t size)
 
 
     /*  allocate new memory */
-    if(!newMem){
+    if(!ptr){
 
-                // calculate number of bytes to allocate
+        // calculate number of bytes to allocate
         // required: num bytes plus space for data structure (40B)
-        // must be a multiple of 1024
-        numBytes_1024 = ((size + BLOCK_SIZE+1023) / 1024) * 1024;
+        // must be a multiple of 1024 (round up)
+        numBytes_1024 = ((size + BLOCK_SIZE + 1023) / 1024) * 1024;
         ptr = sbrk(numBytes_1024);
-        printf("allocating new mem: %zu\n", numBytes_1024);
         
         // init lower_mem_bound
         if(lower_mem_bound == NULL)
@@ -142,10 +140,7 @@ beavalloc(size_t size)
             newMem->prev = NULL;
             newMem->next = NULL;
             block_list_head = newMem;
-        }
-
-
-        
+        }       
     }
 
     // return pointer to available address for data
@@ -158,6 +153,7 @@ beavfree(void *ptr)
     struct mem_block_s *s = block_list_head;
     ptr = ptr - BLOCK_SIZE;
 
+
     while(s){
         if(s == ptr){
             s->free = TRUE;
@@ -167,11 +163,15 @@ beavfree(void *ptr)
                 if(s->next->free == TRUE){ //coalesce
                     s->capacity += (s->next->capacity + BLOCK_SIZE);
                     s->next = s->next->next;
-                    if(s->next)
+                    if(s->next){
                         s->next->prev = s;
+                        // if(s->next->free)
+                        //     beavfree(BLOCK_DATA((void*)s->next));
+                    }
+                        
                 }
             }
-                            // check if previous block was free
+            // check if previous block was free
             if(s->prev){
                 if(s->prev->free == TRUE){
                     beavfree(BLOCK_DATA((void*)s->prev));
@@ -208,7 +208,7 @@ beavcalloc(size_t nmemb, size_t size)
         ptr = beavalloc(nmemb * size);
 
     if(ptr)
-        memset(ptr, 0, nmemb);
+        memset(BLOCK_DATA(ptr), 0, nmemb);
 
     return ptr;
 }
@@ -258,8 +258,8 @@ beavstrdup(const char *s)
     void *nptr = NULL;
 
     if(s){
-        nptr = malloc(strlen(s));
-        memcpy(nptr+BLOCK_SIZE, s, strlen(s));
+        nptr = beavalloc((size_t)strlen(s) + 1);
+        memcpy(nptr, s, strlen(s)+1);
     }
 
     return nptr;

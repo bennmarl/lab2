@@ -361,15 +361,10 @@ allocs5(int testno)
     fprintf(log_stream, "      5 allocs\n");
 
     ptr1 = beavalloc(500);
-    printf("ptr1: %p\n", ptr1);
     ptr2 = beavalloc(530);
-    printf("ptr2: %p\n", ptr2);
     ptr3 = beavalloc(550);
-    printf("ptr3: %p\n", ptr3);
     ptr4 = beavalloc(1024);
-    printf("ptr4: %p\n", ptr4);
     ptr5 = beavalloc(2048);
-    printf("ptr5: %p\n", ptr5);
 
     assert(base < ptr1);
     assert(ptr1 < ptr2);
@@ -564,7 +559,7 @@ memset1(int testno)
         assert(memcmp(ptr3, ch, allocs[2]) == 0);
 
         memset(ch, 0x4, allocs[3]);
-        assert((ptr4, ch, allocs[3]) == 0);
+        assert(memcmp(ptr4, ch, allocs[3]) == 0);
 
         memset(ch, 0x5, allocs[4]);
         assert(memcmp(ptr5, ch, allocs[4]) == 0);
@@ -784,13 +779,9 @@ splitcoalesce1(int testno)
     ptr1 = beavalloc(100);
     beavalloc_dump();
 
-    printf("check 2\n");
-
     // should force a split
     ptr2 = beavalloc(200);
     beavalloc_dump();
-
-    printf("check3 (split)\n");
 
     fprintf(log_stream, "  ptr1 : %p\n  ptr2 : %p\n"
             , ptr1, ptr2);
@@ -936,7 +927,7 @@ stress2(int testno)
     }
     beavalloc_dump();
 
-    for (i = 3; i < num_ptrs; i += 4) {
+    for (i = 1; i < num_ptrs; i += 4) {
         beavfree(ptrs[i]);
     }
     beavalloc_dump();
@@ -1251,7 +1242,6 @@ realloc2(int testno)
     ptr1 = beavrealloc(ptr1, 1000);
     assert(ptr1 != NULL);
     memset(ptr1, 0x1, 1000);
-    printf("chk\n");
 
     ptr1 = beavrealloc(ptr1, 5000);
     assert(ptr1 != NULL);
